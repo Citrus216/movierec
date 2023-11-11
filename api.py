@@ -1,7 +1,7 @@
 import requests
 import csv
 
-_URL = "https://api.themoviedb.org/3/discover/movie"
+_URL = "https://api.themoviedb.org/3/"
 
 
 class Movie:
@@ -22,15 +22,19 @@ class Movie:
             self.title = try_set('title')
             self.vote_average = try_set('vote_average')
             self.vote_count = try_set('vote_count')
+            self.reviews = try_set('reviews')
         elif prop_tuple is not None:
             self.adult, self.genre_ids, self.original_language, self.overview, self.popularity, self.release_date, \
-                self.title, self.vote_average, self.vote_count = prop_tuple
+                self.title, self.vote_average, self.vote_count, self.reviews = prop_tuple
         else:
             raise Exception("Must pass in JSON or tuple to Movie")
 
     def get_props(self) -> tuple:
         return self.adult, self.genre_ids, self.original_language, self.overview, self.popularity, \
-            self.release_date, self.title, self.vote_average, self.vote_count
+            self.release_date, self.title, self.vote_average, self.vote_count, self.reviews
+
+    def __str__(self):
+        return f"{self.title} {self.overview} {self.reviews}"
 
 
 class MovieList:
@@ -71,6 +75,10 @@ class TMDBInterface:
         "Authorization": f"Bearer {api_key}"
     }
 
-    def get_movie_data(self, args: dict[str, str]):
+    def discover(self, args: dict[str, str]):
         args_str = "&".join([f"{key}={value}" for key, value in args.items()])
-        return requests.get(_URL + f"?{args_str}", headers=self._DEF_HEADERS)
+        return requests.get(f"{_URL}/discover/movie?{args_str}", headers=self._DEF_HEADERS)
+
+    def get_reviews(self, movie_id: int, args: dict[str, str]):
+        args_str = "&".join([f"{key}={value}" for key, value in args.items()])
+        return requests.get(f"{_URL}/movie/{movie_id}/reviews?{args_str}", headers=self._DEF_HEADERS)

@@ -49,7 +49,7 @@ def compare(vector1: MovieVector, vector2: MovieVector, norm: int = 1):
 
 
 # splits into a list of lists of words with inner lists being sentences
-def tokenize_synopsis(synopsis: str) -> list[list[str]]:
+def tokenize(synopsis: str) -> list[list[str]]:
     # for now just use their tokenizer
     sentences = synopsis.split(". ")
     sentences = [sub(r"[!-,.-/:-@[-`{-~\-—]", " ", sentence).lower() for sentence in sentences]
@@ -63,9 +63,9 @@ def tokenize_synopsis(synopsis: str) -> list[list[str]]:
     return sentences
 
 
-def tokenize_synopses(movies: MovieList) -> list[list[list[str]]]:
-    synopses = [movie.overview for movie in movies]
-    synopses = [tokenize_synopsis(synopsis) for synopsis in synopses]
+def tokenize_movies(movies: MovieList) -> list[list[list[str]]]:
+    synopses = [str(movie) for movie in movies]
+    synopses = [tokenize(synopsis) for synopsis in synopses]
     return synopses
 
 
@@ -93,7 +93,7 @@ def to_embeddings(synopses: list[list[list[str]]]) -> dict[str, list[float]]:
                 print("done with", word)
 
     matrix_rep = [array for _, array in embeddings.items()]
-    svd = TruncatedSVD(n_components=200)
+    svd = TruncatedSVD(n_components=50)
     transformed = svd.fit_transform(matrix_rep)
     for word in words:
         embeddings[word] = transformed[words.index(word)]
@@ -116,24 +116,23 @@ def to_embeddings(synopses: list[list[list[str]]]) -> dict[str, list[float]]:
     return embeddings
 
 
-def calc_movie_vectors(embeddings: dict[str, list[float]], synopses: list[list[list[str]]], titles: list[list[str]],
-                       title_weight: int = 3) -> List[list[float]]:
+def calc_movie_vectors(embeddings: dict[str, list[float]], synopses: list[list[list[str]]]) -> List[list[float]]:
     movie_vectors = []
-    for title, synopsis in list(zip(titles, synopses)):
+    for synopsis in synopses:
         movie_vector = [0] * len(embeddings[list(embeddings.keys())[0]])
         for sentence in synopsis:
             for word in sentence:
                 if word in embeddings.keys():
                     movie_vector += embeddings[word]
-        for word in title:
-            if word in embeddings.keys():
-                movie_vector += embeddings[word] * title_weight
+        # for word in title:
+        #     if word in embeddings.keys():
+        #         movie_vector += embeddings[word] * title_weight
         movie_vectors.append(movie_vector)
     return movie_vectors
 
 
 def get_movie_vectors(movies: MovieList, recalc: bool = True) -> tuple[dict[str, list[float]], list[MovieVector]]:
-    synopses = tokenize_synopses(movies)
+    synopses = tokenize_movies(movies)
     if not recalc:
         with open(EMBEDDINGS_FILE, newline='') as csvfile:
             reader = csv.reader(csvfile, delimiter=',')
@@ -145,23 +144,17 @@ def get_movie_vectors(movies: MovieList, recalc: bool = True) -> tuple[dict[str,
             reader = csv.reader(csvfile, delimiter=',')
             movie_vectors = [[float(val) for val in row[1:]] for row in reader]
     else:
-        movie_vectors = calc_movie_vectors(embeddings, synopses, [tokenize_synopsis(movie.title)[0] for movie in movies])
+        movie_vectors = calc_movie_vectors(embeddings, synopses)
     return embeddings, [MovieVector(movie, vector).normalize() for movie, vector in zip(movies, movie_vectors)]
 
 
-def main():
+def get_recommendations(input: str, recalc: bool = False) -> list[tuple[Movie, float, int, float, float]]:
     csv_filename = "results.csv"
     movie_list = MovieList(csv_filename=csv_filename)
-    embeddings, movie_vectors = get_movie_vectors(movie_list, recalc=False)
-    writer = csv.writer(open("movie_vectors.csv", "w"))
-    for i, movie_vector in enumerate(movie_vectors):
-        writer.writerow([movie_vector.movie.title, *movie_vector.vector])
+    embeddings, movie_vectors = get_movie_vectors(movie_list)
 
-    # compare similarity of movies that should be similar and dissimilar
-
-    user_input = input("Enter a description: ")
     total_vector = [0] * len(embeddings[list(embeddings.keys())[0]])
-    for sentence in tokenize_synopsis(user_input):
+    for sentence in tokenize(input):
         for word in sentence:
             for i in range(len(total_vector)):
                 if word in embeddings.keys():
@@ -171,12 +164,44 @@ def main():
 
     similarities: dict[str, float] = {}
     for movie_vector in movie_vectors:
-        similarities[movie_vector.movie.title] = compare(total_vector, movie_vector)
+        similarities[movie_vector.movie.title] = compare(total_vector, movie_vector, norm=1)
 
     print("Top 10 recommendations:")
     for movie, similarity in sorted(similarities.items(), key=lambda item: item[1])[:10]:
         print(movie, similarity)
 
+
+def main():
+    csv_filename = "results.csv"
+    movie_list = MovieList(csv_filename=csv_filename)
+    embeddings, movie_vectors = get_movie_vectors(movie_list)
+    writer = csv.writer(open("movie_vectors.csv", "w"))
+    for i, movie_vector in enumerate(movie_vectors):
+        writer.writerow([movie_vector.movie.title, *movie_vector.vector])
+
+    # compare similarity of movies that should be similar and dissimilar
+
+    while True:
+        try:
+            user_input = input("Enter a description: ")
+            total_vector = [0] * len(embeddings[list(embeddings.keys())[0]])
+            for sentence in tokenize(user_input):
+                for word in sentence:
+                    for i in range(len(total_vector)):
+                        if word in embeddings.keys():
+                            total_vector[i] += embeddings[word][i]
+
+            total_vector = MovieVector(None, total_vector).normalize()
+
+            similarities: dict[str, float] = {}
+            for movie_vector in movie_vectors:
+                similarities[movie_vector.movie.title] = compare(total_vector, movie_vector, norm=1)
+
+            print("Top 10 recommendations:")
+            for movie, similarity in sorted(similarities.items(), key=lambda item: item[1])[:10]:
+                print(movie, similarity)
+        except IndexError:
+            break
 
     print("done")
 
