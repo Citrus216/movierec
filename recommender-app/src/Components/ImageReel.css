@@ -1,0 +1,12 @@
+.image-container {
+    position: absolute;
+    top: 70px;
+    left: 145px;
+  }
+  
+  img {
+    max-width: 80%;
+    max-height: 80%;
+  }
+  
+  

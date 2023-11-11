@@ -1,0 +1,23 @@
+/* MovieEntry.css */
+.movie-entry {
+  display: flex;
+  width: 90%;
+  border: 1px solid #ddd;
+  margin: 10px;
+  padding-top: 10px;
+  flex-grow: 1;
+  flex: 1;
+}
+
+.left-column {
+  margin-right: 20px;
+}
+
+.left-column img {
+  max-width: 100px;
+  height: auto;
+}
+
+.right-column {
+  flex: 1;
+}
