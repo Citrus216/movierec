@@ -70,60 +70,65 @@ def tokenize_movies(movies: MovieList) -> list[list[list[str]]]:
 
 
 def to_embeddings(synopses: list[list[list[str]]]) -> dict[str, list[float]]:
-    embeddings = {}
-    words = []
+    matrix_rep = []
+    words = {}
+    total = 0
+    print("starting to fill words")
     for synopsis in synopses:
         for sentence in synopsis:
             for word in sentence:
-                if word not in embeddings.keys():
-                    embeddings[word] = None
-                    words.append(word)
+                if word not in words:
+                    matrix_rep.append(None)
+                    words[word] = total
+                    total += 1
 
-    for word in embeddings.keys():
-        embeddings[word] = [0] * len(words)
+    for i in range(total):
+        matrix_rep[i] = [0] * total
 
-    print(len(words), "words")
+    print(total, "words")
 
+    print("starting to fill embeddings")
     for synopsis in synopses:
         for sentence in synopsis:
             for word in sentence:
                 for other_word in sentence:
                     if word != other_word:
-                        embeddings[word][words.index(other_word)] += 1
-                print("done with", word)
+                        matrix_rep[words[word]][words[other_word]] += 1
 
-    matrix_rep = [array for _, array in embeddings.items()]
-    svd = TruncatedSVD(n_components=50)
+    print("Starting SVD")
+    svd = TruncatedSVD(n_components=100)
     transformed = svd.fit_transform(matrix_rep)
+    embeddings = {}
     for word in words:
-        embeddings[word] = transformed[words.index(word)]
+        embeddings[word] = transformed[words[word]]
 
+    print("writing embeddings")
     orig_embeddings_writer = csv.writer(open("orig_embeddings.csv", "w"))
-    for word in embeddings.keys():
+    for word in words.keys():
         orig_embeddings_writer.writerow([word, *embeddings[word]])
-
-    print("done with svd")
 
     writer = csv.writer(open("embeddings.csv", "w"))
 
+    print("normalizing embeddings")
     # normalize embeddings
-    for word in embeddings.keys():
+    for word in words.keys():
         total = sum([abs(val) for val in embeddings[word]]) + 1
         embeddings[word] = embeddings[word] / total
         writer.writerow([word, *embeddings[word]])
-        print("done with normalization of", word)
 
+    print("done")
     return embeddings
 
 
 def calc_movie_vectors(embeddings: dict[str, list[float]], synopses: list[list[list[str]]]) -> List[list[float]]:
     movie_vectors = []
     for synopsis in synopses:
-        movie_vector = [0] * len(embeddings[list(embeddings.keys())[0]])
+        movie_vector = [0] * len(embeddings["the"])
         for sentence in synopsis:
             for word in sentence:
-                if word in embeddings.keys():
-                    movie_vector += embeddings[word]
+                if word in embeddings:
+                    for i in range(len(movie_vector)):
+                        movie_vector[i] += embeddings[word][i]
         # for word in title:
         #     if word in embeddings.keys():
         #         movie_vector += embeddings[word] * title_weight
@@ -148,10 +153,20 @@ def get_movie_vectors(movies: MovieList, recalc: bool = True) -> tuple[dict[str,
     return embeddings, [MovieVector(movie, vector).normalize() for movie, vector in zip(movies, movie_vectors)]
 
 
-def get_recommendations(input: str, recalc: bool = False) -> list[tuple[Movie, float, int, float, float]]:
+def get_sim_score(distance: float) -> float:
+    return (2 - distance) / 0.02
+
+
+def get_rec_score(movie: Movie, sim_score: float) -> float:
+    return (float(movie.vote_average) * 10 + sim_score * 2) / 3.0
+
+
+def get_recommendations(input: str, recalc: bool = False) -> list[tuple[str, float, int, float, float]]:
+    ret = []
+
     csv_filename = "results.csv"
     movie_list = MovieList(csv_filename=csv_filename)
-    embeddings, movie_vectors = get_movie_vectors(movie_list)
+    embeddings, movie_vectors = get_movie_vectors(movie_list, recalc=recalc)
 
     total_vector = [0] * len(embeddings[list(embeddings.keys())[0]])
     for sentence in tokenize(input):
@@ -162,22 +177,24 @@ def get_recommendations(input: str, recalc: bool = False) -> list[tuple[Movie, f
 
     total_vector = MovieVector(None, total_vector).normalize()
 
-    similarities: dict[str, float] = {}
+    similarities: dict[Movie, float] = {}
     for movie_vector in movie_vectors:
-        similarities[movie_vector.movie.title] = compare(total_vector, movie_vector, norm=1)
+        similarities[movie_vector.movie] = compare(total_vector, movie_vector, norm=1)
 
-    print("Top 10 recommendations:")
-    for movie, similarity in sorted(similarities.items(), key=lambda item: item[1])[:10]:
-        print(movie, similarity)
+    for movie, similarity in similarities.items():
+        sim_score = get_sim_score(similarity)
+        ret.append((movie.title, movie.vote_average, movie.vote_count, sim_score, get_rec_score(movie, sim_score)))
 
+    ret = sorted(ret, key=lambda item: item[4], reverse=True)[:10]
+    return ret
 
 def main():
     csv_filename = "results.csv"
     movie_list = MovieList(csv_filename=csv_filename)
-    embeddings, movie_vectors = get_movie_vectors(movie_list)
+    embeddings, movie_vectors = get_movie_vectors(movie_list, recalc=True)
     writer = csv.writer(open("movie_vectors.csv", "w"))
     for i, movie_vector in enumerate(movie_vectors):
-        writer.writerow([movie_vector.movie.title, *movie_vector.vector])
+        writer.writerow([movie_list[i].title, *movie_vector])
 
     # compare similarity of movies that should be similar and dissimilar
 
