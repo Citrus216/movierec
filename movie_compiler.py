@@ -1,11 +1,15 @@
 from sys import argv
 from api import TMDBInterface, Movie, MovieList
 
+
 def main(argv: list):
     interface = TMDBInterface("eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJmNzFjYTJkZmQ1NTBkODQ4MDMzNmVkNjVjOGU3NmFjNSIsInN1YiI6IjY"
                               "1NGUzZjY0NjdiNjEzMDEzYzRiOWVkMyIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.OG-DDQ82"
                               "Az4fl39RZiZxYowMZV1kqceKpGkLd6EIJ6M")
-    get_rec(interface)
+    if len(argv) > 1:
+        get_rec(interface, pages=int(argv[1]))
+    else:
+        get_rec(interface)
 
 
 def get_rec(interface: TMDBInterface, input: str = "", pages: int = 500) -> None:

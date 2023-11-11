@@ -50,6 +50,15 @@ class MovieList:
         fp = open(filename + ".csv", "w")
         csv.writer(fp, delimiter=',').writerows([movie.get_props() for movie in self.__list])
 
+    def __getitem__(self, item):
+        return self.__list[item]
+
+    def __len__(self):
+        return len(self.__list)
+
+    def __iter__(self):
+        return iter(self.__list)
+
 
 class TMDBInterface:
     def __init__(self, api_key: str):
