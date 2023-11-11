@@ -45,6 +45,9 @@ class MovieList:
             self.__list: list[Movie] = movie_list
         else:
             raise Exception("Must pass in CSV filename or list of Movies")
+        for movie in self.__list:
+            if any([prop is None or prop == "" for prop in movie.get_props()]) or movie.original_language != "en":
+                self.__list.remove(movie)
 
     def to_csv(self, filename: str):
         fp = open(filename + ".csv", "w")

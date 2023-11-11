@@ -17,7 +17,6 @@ def get_rec(interface: TMDBInterface, input: str = "", pages: int = 500) -> None
         "page": "1"
     }
     movies = []
-    fp = open("results.txt", "w")
     for i in range(1, pages + 1):
         print(i)
         args["page"] = f"{i}"

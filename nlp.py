@@ -17,13 +17,20 @@ nltk.download('punkt')
 # from numpy matrix, create movie matrix by totalling embedding matrices of words in the movie synopsis
 
 
+EMBEDDINGS_FILE = "embeddings.csv"
+MOVIE_VECTORS_FILE = "movie_vectors.csv"
+
+
 class MovieVector:
     def __init__(self, movie: Movie, vector: list[float]):
         self.movie = movie
         self.vector = vector
 
     def __getitem__(self, item):
-        return self.vector[item]
+        try:
+            return self.vector[item]
+        except IndexError:
+            return 0
 
     def __len__(self):
         return len(self.vector)
@@ -47,6 +54,12 @@ def tokenize_synopsis(synopsis: str) -> list[list[str]]:
     sentences = synopsis.split(". ")
     sentences = [sub(r"[!-,.-/:-@[-`{-~\-—]", " ", sentence).lower() for sentence in sentences]
     sentences = [word_tokenize(sentence) for sentence in sentences]
+    for i, sentence in enumerate(sentences):
+        for j, word in enumerate(sentence):
+            # use nltk for stemming
+            word = nltk.PorterStemmer().stem(word)
+            sentences[i][j] = word
+
     return sentences
 
 
@@ -103,57 +116,67 @@ def to_embeddings(synopses: list[list[list[str]]]) -> dict[str, list[float]]:
     return embeddings
 
 
-def calc_movie_vectors(embeddings: dict[str, list[float]], synopses: list[list[list[str]]]) -> List[list[float]]:
+def calc_movie_vectors(embeddings: dict[str, list[float]], synopses: list[list[list[str]]], titles: list[list[str]],
+                       title_weight: int = 3) -> List[list[float]]:
     movie_vectors = []
-    for synopsis in synopses:
+    for title, synopsis in list(zip(titles, synopses)):
         movie_vector = [0] * len(embeddings[list(embeddings.keys())[0]])
         for sentence in synopsis:
             for word in sentence:
-                movie_vector += embeddings[word]
+                if word in embeddings.keys():
+                    movie_vector += embeddings[word]
+        for word in title:
+            if word in embeddings.keys():
+                movie_vector += embeddings[word] * title_weight
         movie_vectors.append(movie_vector)
     return movie_vectors
 
 
-def get_movie_vectors(movies: MovieList) -> tuple[dict[str, list[float]], list[MovieVector]]:
+def get_movie_vectors(movies: MovieList, recalc: bool = True) -> tuple[dict[str, list[float]], list[MovieVector]]:
     synopses = tokenize_synopses(movies)
-    embeddings = to_embeddings(synopses)
-    movie_vectors = calc_movie_vectors(embeddings, synopses)
+    if not recalc:
+        with open(EMBEDDINGS_FILE, newline='') as csvfile:
+            reader = csv.reader(csvfile, delimiter=',')
+            embeddings = {row[0]: [float(val) for val in row[1:]] for row in reader}
+    else:
+        embeddings = to_embeddings(synopses)
+    if not recalc:
+        with open(MOVIE_VECTORS_FILE, newline='') as csvfile:
+            reader = csv.reader(csvfile, delimiter=',')
+            movie_vectors = [[float(val) for val in row[1:]] for row in reader]
+    else:
+        movie_vectors = calc_movie_vectors(embeddings, synopses, [tokenize_synopsis(movie.title)[0] for movie in movies])
     return embeddings, [MovieVector(movie, vector).normalize() for movie, vector in zip(movies, movie_vectors)]
 
 
 def main():
     csv_filename = "results.csv"
     movie_list = MovieList(csv_filename=csv_filename)
-    embeddings, movie_vectors = get_movie_vectors(movie_list)
+    embeddings, movie_vectors = get_movie_vectors(movie_list, recalc=False)
     writer = csv.writer(open("movie_vectors.csv", "w"))
     for i, movie_vector in enumerate(movie_vectors):
         writer.writerow([movie_vector.movie.title, *movie_vector.vector])
 
     # compare similarity of movies that should be similar and dissimilar
-    nun_vector = movie_vectors[16]
-    print(nun_vector.movie.title)
-    exorcist_vector = movie_vectors[18]
-    print(exorcist_vector.movie.title)
-    meg_vector = movie_vectors[20]
-    print(meg_vector.movie.title)
-    pp_vector = movie_vectors[17]
-    print(pp_vector.movie.title)
-    print("nun and exorcist:", compare(nun_vector, exorcist_vector, 2))
-    print("nun and meg", compare(nun_vector, meg_vector, 2))
-    print("nun and pp", compare(nun_vector, pp_vector, 2))
-
-    print("'horror' and nun", compare(embeddings['horror'], nun_vector, 2))
-    print("'horror' and pp", compare(embeddings['horror'], pp_vector, 2))
-    print("'horror' and exorcist", compare(embeddings['horror'], exorcist_vector, 2))
 
     user_input = input("Enter a description: ")
     total_vector = [0] * len(embeddings[list(embeddings.keys())[0]])
-    for word in word_tokenize(user_input):
-        total_vector += embeddings[word]
-    print('user input and nun', compare(total_vector, nun_vector, 2))
-    print('user input and pp', compare(total_vector, pp_vector, 2))
-    print('user input and exorcist', compare(total_vector, exorcist_vector, 2))
-    print('user input and meg', compare(total_vector, meg_vector, 2))
+    for sentence in tokenize_synopsis(user_input):
+        for word in sentence:
+            for i in range(len(total_vector)):
+                if word in embeddings.keys():
+                    total_vector[i] += embeddings[word][i]
+
+    total_vector = MovieVector(None, total_vector).normalize()
+
+    similarities: dict[str, float] = {}
+    for movie_vector in movie_vectors:
+        similarities[movie_vector.movie.title] = compare(total_vector, movie_vector)
+
+    print("Top 10 recommendations:")
+    for movie, similarity in sorted(similarities.items(), key=lambda item: item[1])[:10]:
+        print(movie, similarity)
+
 
     print("done")
 
