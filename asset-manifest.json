@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/movierec/static/css/main.bb363da9.css",
+    "main.js": "/movierec/static/js/main.6512fff4.js",
+    "static/js/787.e54e0095.chunk.js": "/movierec/static/js/787.e54e0095.chunk.js",
+    "index.html": "/movierec/index.html",
+    "main.bb363da9.css.map": "/movierec/static/css/main.bb363da9.css.map",
+    "main.6512fff4.js.map": "/movierec/static/js/main.6512fff4.js.map",
+    "787.e54e0095.chunk.js.map": "/movierec/static/js/787.e54e0095.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.bb363da9.css",
+    "static/js/main.6512fff4.js"
+  ]
+}
