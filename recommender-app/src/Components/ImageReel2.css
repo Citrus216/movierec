@@ -1,7 +1,8 @@
 .image2-container {
-    position: absolute;
-    top: 70px;
-    right: 145px;
+  flex: 2;
+  margin-top: 30px;
+  height: 100%;
+  width: 100%;
     transform: scaleX(-1);
   }
   

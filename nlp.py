@@ -7,6 +7,7 @@ from api import MovieList, Movie
 from re import sub
 import csv
 from sklearn.decomposition import TruncatedSVD
+import math
 
 nltk.download('punkt')
 
@@ -39,7 +40,7 @@ class MovieVector:
         return iter(self.vector)
 
     def normalize(self):
-        total = sum([abs(val) for val in self.vector]) + 1
+        total = math.sqrt(sum([val * val for val in self.vector]))
         self.vector = [val / total for val in self.vector]
         return self
 
@@ -57,7 +58,7 @@ def tokenize(synopsis: str) -> list[list[str]]:
     for i, sentence in enumerate(sentences):
         for j, word in enumerate(sentence):
             # use nltk for stemming
-            word = nltk.PorterStemmer().stem(word)
+            # word = nltk.PorterStemmer().stem(word)
             sentences[i][j] = word
 
     return sentences
@@ -109,11 +110,11 @@ def to_embeddings(synopses: list[list[list[str]]]) -> dict[str, list[float]]:
 
     writer = csv.writer(open("embeddings.csv", "w"))
 
-    print("normalizing embeddings")
-    # normalize embeddings
+    # print("normalizing embeddings")
+    # # normalize embeddings
     for word in words.keys():
-        total = sum([abs(val) for val in embeddings[word]]) + 1
-        embeddings[word] = embeddings[word] / total
+        #     total = sum([abs(val) for val in embeddings[word]]) + 1
+        #     embeddings[word] = embeddings[word] / total
         writer.writerow([word, *embeddings[word]])
 
     print("done")
@@ -153,39 +154,47 @@ def get_movie_vectors(movies: MovieList, recalc: bool = True) -> tuple[dict[str,
     return embeddings, [MovieVector(movie, vector).normalize() for movie, vector in zip(movies, movie_vectors)]
 
 
-def get_sim_score(distance: float) -> float:
-    return (2 - distance) / 0.02
-
-
 def get_rec_score(movie: Movie, sim_score: float) -> float:
-    return (float(movie.vote_average) * 10 + sim_score * 2) / 3.0
+    return (float(movie.vote_average) + sim_score) / 1.1
 
 
-def get_recommendations(input: str, recalc: bool = False) -> list[tuple[str, float, int, float, float]]:
+def get_recommendations(input: str, recalc: bool = True) -> list[dict]:
     ret = []
 
     csv_filename = "results.csv"
     movie_list = MovieList(csv_filename=csv_filename)
     embeddings, movie_vectors = get_movie_vectors(movie_list, recalc=recalc)
 
-    total_vector = [0] * len(embeddings[list(embeddings.keys())[0]])
+    # total_vector = [0] * len(embeddings[list(embeddings.keys())[0]])
+    total_vector = [0] * len(embeddings["the"])
     for sentence in tokenize(input):
         for word in sentence:
             for i in range(len(total_vector)):
-                if word in embeddings.keys():
+                if word in embeddings:
                     total_vector[i] += embeddings[word][i]
 
     total_vector = MovieVector(None, total_vector).normalize()
 
     similarities: dict[Movie, float] = {}
     for movie_vector in movie_vectors:
-        similarities[movie_vector.movie] = compare(total_vector, movie_vector, norm=1)
+        similarities[movie_vector.movie] = compare(total_vector, movie_vector, norm=2)
+
+    max_sim = max(similarities.values())
+    similarities = {movie: max_sim - similarity for movie, similarity in similarities.items()}
+    max_sim = max(similarities.values())
+    similarities = {movie: similarity / max_sim for movie, similarity in similarities.items()}
 
     for movie, similarity in similarities.items():
-        sim_score = get_sim_score(similarity)
-        ret.append((movie.title, movie.vote_average, movie.vote_count, sim_score, get_rec_score(movie, sim_score)))
+        ret.append({
+            'title': movie.title,
+            'vote_average': movie.vote_average,
+            'vote_count': movie.vote_count,
+            'sim_score': similarity * 100,
+            'rec_score': get_rec_score(movie, similarity * 100),
+            'image_url': f"https://image.tmdb.org/t/p/w500{movie.poster_path}",
+        })
 
-    ret = sorted(ret, key=lambda item: item[4], reverse=True)[:10]
+    ret = sorted(ret, key=lambda item: item['rec_score'], reverse=True)[:50]
     return ret
 
 def main():
@@ -212,10 +221,10 @@ def main():
 
             similarities: dict[str, float] = {}
             for movie_vector in movie_vectors:
-                similarities[movie_vector.movie.title] = compare(total_vector, movie_vector, norm=1)
+                similarities[movie_vector.movie.title] = compare(total_vector, movie_vector, norm=2)
 
             print("Top 10 recommendations:")
-            for movie, similarity in sorted(similarities.items(), key=lambda item: item[1])[:10]:
+            for movie, similarity in sorted(similarities.items(), key=lambda item: item[1])[:50]:
                 print(movie, similarity)
         except IndexError:
             break

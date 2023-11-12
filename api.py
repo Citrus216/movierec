@@ -23,15 +23,16 @@ class Movie:
             self.vote_average = try_set('vote_average')
             self.vote_count = try_set('vote_count')
             self.reviews = try_set('reviews')
+            self.poster_path = try_set('poster_path')
         elif prop_tuple is not None:
             self.adult, self.genre_ids, self.original_language, self.overview, self.popularity, self.release_date, \
-                self.title, self.vote_average, self.vote_count, self.reviews = prop_tuple
+                self.title, self.vote_average, self.vote_count, self.reviews, self.poster_path = prop_tuple
         else:
             raise Exception("Must pass in JSON or tuple to Movie")
 
     def get_props(self) -> tuple:
         return self.adult, self.genre_ids, self.original_language, self.overview, self.popularity, \
-            self.release_date, self.title, self.vote_average, self.vote_count, self.reviews
+            self.release_date, self.title, self.vote_average, self.vote_count, self.reviews, self.poster_path
 
     def __str__(self):
         return f"{self.title} {self.overview} {self.reviews}"

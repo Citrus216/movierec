@@ -1,6 +1,7 @@
 // MovieEntry.tsx
 import React from 'react';
 import './MovieEntry.css';
+import RecommendationScore from './RecommendationScore';
 
 // interface Movie {
 //   title: string;
@@ -16,27 +17,27 @@ import './MovieEntry.css';
 // }
 
 const MovieEntry = ({ movie }) => {
+
   const {
     title,
-    rating,
-    numRatings,
-    recommendedScore,
-    similarityScore,
-    imageUrl,
+    vote_average,
+    vote_count,
+    sim_score,
+    rec_score,
+    image_url,
   } = movie;
 
   return (
     <div className="movie-entry">
       <div className="left-column">
-        <img src={imageUrl} alt={`Poster for ${title}`} />
+        <img className="movie-image" src={image_url} alt={`Poster for ${title}`} />
       </div>
       <div className="right-column">
         <h2>{title}</h2>
-        <p>Rating: {rating}</p>
-        <p>Number of Ratings: {numRatings}</p>
-        <p>Recommended Score: {recommendedScore}</p>
-        <p>Similarity Score: {similarityScore}</p>
+        <h3>Rating: {vote_average}</h3>
+        <h3>Number of Ratings: {vote_count}</h3>
       </div>
+      <RecommendationScore className="recommendation" recScore={Math.round(rec_score)} simScore={Math.round(sim_score)} />
     </div>
   );
 };

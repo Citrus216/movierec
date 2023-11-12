@@ -1,23 +1,35 @@
 /* MovieEntry.css */
 .movie-entry {
   display: flex;
+  flex-direction: row;
+  flex-basis: 5;
   width: 90%;
   border: 1px solid #ddd;
   margin: 10px;
-  padding-top: 10px;
   flex-grow: 1;
   flex: 1;
 }
 
 .left-column {
   margin-right: 20px;
+  flex: 1;
 }
 
 .left-column img {
-  max-width: 100px;
+  width: auto;
   height: auto;
+  max-height: 300px;
 }
 
 .right-column {
-  flex: 1;
+  flex: 2;
+}
+
+.right-column h2 {
+  color: #94331e;
+  font-size: 3em;
+}
+
+.recommendation {
+  flex: 3;
 }

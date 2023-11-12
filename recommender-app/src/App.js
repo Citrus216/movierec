@@ -1,9 +1,10 @@
-import React from 'react';
-import SearchBox from './Components/SearchBox';
-import Image from './Components/ImageReel';
-import Image2 from './Components/ImageReel2';
+import React, { useState } from 'react';
+import SearchBox from './components/SearchBox';
+import Image from './components/ImageReel';
+import Image2 from './components/ImageReel2';
 import './App.css'; 
-import MovieEntry from './Components/MovieEntry'
+import MovieEntry from './components/MovieEntry'
+import LoadingSpinner from './components/LoadingSpinner';
 
 
 const moviesData = [
@@ -36,20 +37,51 @@ const moviesData = [
 ];
 
 function App() {
+  const [ text, setText ] = useState("");
+  const [ movies, setMovies ] = useState([]);
+  const [ isLoading, setIsLoading ] = useState(false);
+
+  const onChange = (event) => {
+    setText(event.target.value);
+  }
+
+  const onSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      console.log(text)
+      const response = await fetch(`http://127.0.0.1:5000/api/v1/movies?query=${encodeURIComponent(text)}`);
+
+      if (response.ok) {
+        const data = await response.json();
+        setMovies(data.movies);
+      } else {
+        console.error('Failed to fetch movies');
+        console.log("test")
+      }
+    } catch (error) {
+      console.error('Error during movie fetch:', error);
+      console.log("test");
+    }
+    setIsLoading(false);
+  };
+
   return (
     <div className="app-container">
-      <h1>CineMatch</h1>
-      <SearchBox />
-      {/* Other components and content */}
-      <Image src="https://icons.iconarchive.com/icons/icons8/ios7/256/Photo-Video-Film-Reel-Filled-icon.png" />
-      <Image2 src="https://icons.iconarchive.com/icons/icons8/ios7/256/Photo-Video-Film-Reel-Filled-icon.png" />
+      <div style={{ display:"flex", flexDirection:"row", flexBasis: "9", textAlign: "center"}}>
+        <Image src="https://icons.iconarchive.com/icons/icons8/ios7/256/Photo-Video-Film-Reel-Filled-icon.png" />
+        <h1 style={{flex: 5, marginBottom: "30px"}}>CineMatch</h1>
+        <Image2 src="https://icons.iconarchive.com/icons/icons8/ios7/256/Photo-Video-Film-Reel-Filled-icon.png" />
+      </div>
+      <SearchBox text={text} onChange={onChange} onSubmit={onSubmit} />
 
       <div className="movie-container">
-        {moviesData.map((movie, index) => (
+        {movies.map((movie, index) => (
             <MovieEntry key={index} movie={movie} />
           ))}
-
       </div>
+      <LoadingSpinner isLoading={isLoading} />
     </div>
   );
 }

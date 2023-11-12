@@ -1,27 +1,26 @@
 import React, { useState } from 'react';
 import './SearchBox.css'; // Create this CSS file in the same directory
 
-const SearchBox = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-
-  const handleSearchChange = (event) => {
-    setSearchTerm(event.target.value);
-  };
-
-  const handleSearchSubmit = (event) => {
-    event.preventDefault();
-    // You can perform search-related actions here with the 'searchTerm'
-    console.log('Search Term:', searchTerm);
-  };
+const SearchBox = ({ text, onChange, onSubmit }) => {
+//
+//   const handleSearchChange = (event) => {
+//     setSearchTerm(event.target.value);
+//   };
+//
+//   const handleSearchSubmit = (event) => {
+//     event.preventDefault();
+//     // You can perform search-related actions here with the 'searchTerm'
+//     console.log('Search Term:', searchTerm);
+//   };
 
   return (
     <div className="search-container">
-      <form onSubmit={handleSearchSubmit}>
+      <form onSubmit={onSubmit}>
         <input
           type="text"
           placeholder="Search..."
-          value={searchTerm}
-          onChange={handleSearchChange}
+          value={text}
+          onChange={onChange}
         />
         <button type="submit">
           <img
